@@ -9,43 +9,53 @@
       font-family: Arial, sans-serif;
       padding: 20px;
     }
-    #quoteDisplay {
-      margin: 20px 0;
-      font-size: 18px;
+    h1 {
+      text-align: center;
     }
-    input, button, select {
+    #quoteDisplay {
+      font-size: 20px;
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: #f5f5f5;
+      min-height: 50px;
+    }
+    input, select, button {
       margin: 5px 0;
       padding: 8px;
-      font-size: 16px;
+      font-size: 14px;
+    }
+    #controls, #addQuoteForm, #importExport {
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
   <h1>Dynamic Quote Generator</h1>
 
-  <!-- Display Area -->
-  <div id="quoteDisplay"></div>
-  <button id="newQuote">Show New Quote</button>
+  <!-- Quote display -->
+  <div id="quoteDisplay">Click "Show New Quote" to display a quote.</div>
 
-  <!-- Add Quote Section -->
-  <div>
-    <input id="newQuoteText" type="text" placeholder="Enter a new quote" />
-    <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
-    <button onclick="addQuote()">Add Quote</button>
-  </div>
-
-  <!-- Category Filter -->
-  <div>
-    <label for="categoryFilter">Filter by category:</label>
-    <select id="categoryFilter" onchange="filterQuotes()">
+  <!-- Controls -->
+  <div id="controls">
+    <button id="newQuote">Show New Quote</button>
+    <select id="categoryFilter">
       <option value="all">All Categories</option>
     </select>
   </div>
 
-  <!-- Import/Export JSON -->
-  <div>
-    <input type="file" id="importFile" accept=".json" onchange="importFromJsonFile(event)">
-    <button onclick="exportToJsonFile()">Export Quotes</button>
+  <!-- Add new quote -->
+  <div id="addQuoteForm">
+    <input id="newQuoteText" type="text" placeholder="Enter a new quote" />
+    <input id="newQuoteCategory" type="text" placeholder="Enter quote category" />
+    <button id="addQuoteBtn">Add Quote</button>
+  </div>
+
+  <!-- Import/export JSON -->
+  <div id="importExport">
+    <input type="file" id="importFile" accept=".json" />
+    <button id="exportBtn">Export Quotes</button>
   </div>
 
   <script src="script.js"></script>
