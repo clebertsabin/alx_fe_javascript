@@ -37,10 +37,11 @@ function saveSelectedCategory() {
 // Display & Filtering Logic
 // ========================
 function displayRandomQuote() {
-  let filteredQuotes =
-    selectedCategory === "all"
-      ? quotes
-      : quotes.filter((q) => q.category === selectedCategory);
+  if (!quoteDisplay) return;
+  
+  const filteredQuotes = selectedCategory === "all" 
+    ? quotes 
+    : quotes.filter(q => q.category === selectedCategory);
 
   if (filteredQuotes.length === 0) {
     quoteDisplay.textContent = "No quotes found for this category.";
@@ -48,8 +49,12 @@ function displayRandomQuote() {
   }
 
   const randomIndex = Math.floor(Math.random() * filteredQuotes.length);
-  const randomQuote = filteredQuotes[randomIndex];
-  quoteDisplay.textContent = `"${randomQuote.text}" - (${randomQuote.category})`;
+  const quote = filteredQuotes[randomIndex];
+  
+  // Save last viewed quote to session storage
+  sessionStorage.setItem("lastViewedQuote", JSON.stringify(quote));
+  
+  quoteDisplay.textContent = `"${quote.text}" - (${quote.category})`;
 }
 
 // ========================
@@ -250,14 +255,46 @@ function showNotification(message, type = "success") {
 // ========================
 // Periodic Sync
 // ========================
-setInterval(fetchQuotesFromServer, 60000);
+async function syncQuotes() {
+  try {
+    const serverQuotes = await fetchQuotesFromServer();
+    
+    // Compare and merge quotes
+    for (const serverQuote of serverQuotes) {
+      const localQuote = quotes.find(q => q.text === serverQuote.text);
+      if (localQuote) {
+        // Handle conflict
+        const resolved = await resolveConflict(serverQuote, localQuote);
+        Object.assign(localQuote, resolved);
+      } else {
+        quotes.push(serverQuote);
+      }
+    }
+    
+    saveQuotes();
+    populateCategories();
+    showNotification("Quotes synced successfully!");
+  } catch (error) {
+    showNotification("Error syncing quotes: " + error.message, "error");
+  }
+}
 
 // ========================
 // Initialize App
 // ========================
-createAddQuoteForm();
-populateCategories();
-displayRandomQuote();
+document.addEventListener("DOMContentLoaded", () => {
+  createAddQuoteForm();
+  populateCategories();
+  displayRandomQuote();
 
-if (newQuoteBtn) newQuoteBtn.addEventListener("click", displayRandomQuote);
-if (categoryFilter) categoryFilter.addEventListener("change", filterQuotes);
+  // Add event listeners
+  if (newQuoteBtn) {
+    newQuoteBtn.addEventListener("click", displayRandomQuote);
+  }
+  if (categoryFilter) {
+    categoryFilter.addEventListener("change", filterQuotes);
+  }
+
+  // Start periodic sync
+  setInterval(syncQuotes, 60000); // Sync every minute
+});
