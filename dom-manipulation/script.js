@@ -84,18 +84,25 @@ function createAddQuoteForm() {
 // ========================
 // Add Quote Function
 // ========================
-function addQuote() {
+async function addQuote() {
   const text = document.getElementById("quoteText").value.trim();
   const category = document.getElementById("quoteCategory").value.trim();
 
   if (text && category) {
-    quotes.push({ text, category });
+    const newQuote = { text, category };
+
+    // Add locally
+    quotes.push(newQuote);
     saveQuotes();
     populateCategories();
     displayRandomQuote();
+
+    // Post to server
+    await postQuoteToServer(newQuote);
+
     document.getElementById("quoteText").value = "";
     document.getElementById("quoteCategory").value = "";
-    alert("Quote added successfully!");
+    showNotification("Quote added successfully!");
   } else {
     alert("Please fill in both fields.");
   }
@@ -147,39 +154,82 @@ function importFromJsonFile(event) {
     quotes.push(...importedQuotes);
     saveQuotes();
     populateCategories();
-    alert("Quotes imported successfully!");
+    showNotification("Quotes imported successfully!");
   };
   fileReader.readAsText(event.target.files[0]);
 }
 
 // ========================
-// Simulate Server Sync
+// Server Interaction
 // ========================
 async function fetchQuotesFromServer() {
   try {
     const response = await fetch("https://jsonplaceholder.typicode.com/posts?_limit=3");
     const data = await response.json();
 
-    // Simulate new quotes from server
     const serverQuotes = data.map((item) => ({
       text: item.title,
       category: "Server"
     }));
 
-    // Simple conflict resolution: server data replaces duplicates
-    quotes = [...quotes, ...serverQuotes.filter(
-      (sq) => !quotes.some((q) => q.text === sq.text)
-    )];
+    // Conflict resolution: add only non-duplicates
+    let newQuotesCount = 0;
+    serverQuotes.forEach((sq) => {
+      if (!quotes.some((q) => q.text === sq.text)) {
+        quotes.push(sq);
+        newQuotesCount++;
+      }
+    });
 
-    saveQuotes();
-    populateCategories();
-    console.log("Synced with server successfully!");
+    if (newQuotesCount > 0) {
+      saveQuotes();
+      populateCategories();
+      showNotification(`${newQuotesCount} new quote(s) synced from server!`);
+    }
   } catch (error) {
     console.error("Error syncing with server:", error);
+    showNotification("Error syncing with server.");
   }
 }
 
-// Periodic sync every 60 seconds
+// Post new quote to mock server
+async function postQuoteToServer(quote) {
+  try {
+    await fetch("https://jsonplaceholder.typicode.com/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(quote)
+    });
+    console.log("Quote posted to server:", quote);
+  } catch (error) {
+    console.error("Error posting quote:", error);
+  }
+}
+
+// ========================
+// UI Notification
+// ========================
+function showNotification(message) {
+  const notification = document.createElement("div");
+  notification.textContent = message;
+  notification.style.position = "fixed";
+  notification.style.bottom = "20px";
+  notification.style.right = "20px";
+  notification.style.background = "#4caf50";
+  notification.style.color = "#fff";
+  notification.style.padding = "10px 20px";
+  notification.style.borderRadius = "5px";
+  notification.style.boxShadow = "0 2px 5px rgba(0,0,0,0.3)";
+  notification.style.zIndex = "1000";
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => notification.remove(), 3000);
+}
+
+// ========================
+// Periodic Sync
+// ========================
 setInterval(fetchQuotesFromServer, 60000);
 
 // ========================
@@ -188,5 +238,6 @@ setInterval(fetchQuotesFromServer, 60000);
 createAddQuoteForm();
 populateCategories();
 displayRandomQuote();
-newQuoteBtn.addEventListener("click", displayRandomQuote);
+
+if (newQuoteBtn) newQuoteBtn.addEventListener("click", displayRandomQuote);
 if (categoryFilter) categoryFilter.addEventListener("change", filterQuotes);
