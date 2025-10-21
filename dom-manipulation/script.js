@@ -149,13 +149,24 @@ function exportToJson() {
 
 function importFromJsonFile(event) {
   const fileReader = new FileReader();
-  fileReader.onload = function (event) {
-    const importedQuotes = JSON.parse(event.target.result);
-    quotes.push(...importedQuotes);
-    saveQuotes();
-    populateCategories();
-    showNotification("Quotes imported successfully!");
+  fileReader.onload = function(event) {
+    try {
+      const importedQuotes = JSON.parse(event.target.result);
+      
+      // Validate imported data structure
+      if (!Array.isArray(importedQuotes) || !importedQuotes.every(q => q.text && q.category)) {
+        throw new Error('Invalid quote format in imported file');
+      }
+
+      quotes.push(...importedQuotes);
+      saveQuotes();
+      populateCategories();
+      showNotification("Quotes imported successfully!");
+    } catch (error) {
+      showNotification("Error importing quotes: " + error.message, "error");
+    }
   };
+  fileReader.onerror = () => showNotification("Error reading file", "error");
   fileReader.readAsText(event.target.files[0]);
 }
 
@@ -165,6 +176,7 @@ function importFromJsonFile(event) {
 async function fetchQuotesFromServer() {
   try {
     const response = await fetch("https://jsonplaceholder.typicode.com/posts?_limit=3");
+    if (!response.ok) throw new Error('Server response was not ok');
     const data = await response.json();
 
     const serverQuotes = data.map((item) => ({
@@ -172,23 +184,30 @@ async function fetchQuotesFromServer() {
       category: "Server"
     }));
 
-    // Conflict resolution: add only non-duplicates
+    // Enhanced conflict resolution
     let newQuotesCount = 0;
-    serverQuotes.forEach((sq) => {
-      if (!quotes.some((q) => q.text === sq.text)) {
+    for (const sq of serverQuotes) {
+      const existingQuote = quotes.find(q => q.text === sq.text);
+      if (existingQuote) {
+        const resolvedQuote = await resolveConflict(sq, existingQuote);
+        if (resolvedQuote !== existingQuote) {
+          Object.assign(existingQuote, resolvedQuote);
+          newQuotesCount++;
+        }
+      } else {
         quotes.push(sq);
         newQuotesCount++;
       }
-    });
+    }
 
     if (newQuotesCount > 0) {
       saveQuotes();
       populateCategories();
-      showNotification(`${newQuotesCount} new quote(s) synced from server!`);
+      showNotification(`${newQuotesCount} quote(s) synced from server!`);
     }
   } catch (error) {
     console.error("Error syncing with server:", error);
-    showNotification("Error syncing with server.");
+    showNotification("Error syncing with server: " + error.message, "error");
   }
 }
 
@@ -209,21 +228,22 @@ async function postQuoteToServer(quote) {
 // ========================
 // UI Notification
 // ========================
-function showNotification(message) {
+function showNotification(message, type = "success") {
   const notification = document.createElement("div");
   notification.textContent = message;
   notification.style.position = "fixed";
   notification.style.bottom = "20px";
   notification.style.right = "20px";
-  notification.style.background = "#4caf50";
-  notification.style.color = "#fff";
   notification.style.padding = "10px 20px";
   notification.style.borderRadius = "5px";
   notification.style.boxShadow = "0 2px 5px rgba(0,0,0,0.3)";
   notification.style.zIndex = "1000";
+  
+  // Color based on type
+  notification.style.background = type === "success" ? "#4caf50" : "#f44336";
+  notification.style.color = "#fff";
 
   document.body.appendChild(notification);
-
   setTimeout(() => notification.remove(), 3000);
 }
 
